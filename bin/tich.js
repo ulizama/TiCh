@@ -6,7 +6,8 @@ var program = require('commander'),
     fs = require("fs"),
     tiappxml = require('tiapp.xml'),
     pkg = require('../package.json'),
-    xpath = require('xpath')
+    xpath = require('xpath'),
+    copy = require('copy-files')
 
 tich();
 
@@ -145,6 +146,23 @@ function tich() {
 
                         }
                     }
+
+                    //Update DefaultIcon
+                    var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+
+                    if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png')) {
+                        defaultIcon = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png';
+                    }
+
+                    copy({
+                      files: {
+                        'DefaultIcon.png': defaultIcon
+                      },
+                      dest: './',
+                      overwrite: true
+                    }, function (err) {
+                        console.log('Updating DefaultIcon.png');
+                    });
 
                     console.log(chalk.green('\n' + outfilename + ' updated\n'));
 
