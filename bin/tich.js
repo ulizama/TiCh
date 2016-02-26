@@ -164,6 +164,25 @@ function tich() {
                         console.log('Updating DefaultIcon.png');
                     });
 
+
+                    //Update LaunchLogo
+                    var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
+
+                    if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png')) {
+                        defaultLaunchLogo = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png';
+                    }
+
+                    copy({
+                      files: {
+                        'LaunchLogo.png': defaultLaunchLogo
+                      },
+                      dest: './',
+                      overwrite: true
+                    }, function (err) {
+                        console.log('Updating LaunchLogo.png');
+                    });
+                    
+
                     console.log(chalk.green('\n' + outfilename + ' updated\n'));
 
                     tiapp.write(outfilename);
