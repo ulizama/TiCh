@@ -16,6 +16,16 @@ function tich() {
 
     // status command, shows the current config
     function status() {
+
+        var tiapp = tiappxml.load(outfile);
+
+        var alloyCfg;
+        var isAlloy = false;
+        if (fs.existsSync("./app/config.json")) {
+            isAlloy = true;
+            alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
+        }
+
         console.log('\n');
         console.log('Name: ' + chalk.cyan(tiapp.name));
         console.log('AppId: ' + chalk.cyan(tiapp.id));
@@ -39,18 +49,36 @@ function tich() {
 
         } else {
 
+            cfg.configs.forEach(function(config) {
+
+                if (config.name === name ) {
+                    if (config.hasOwnProperty('tiapp')){
+                        infile = './TiCh/templates/' + config.tiapp;
+
+                        if (!fs.existsSync(infile)) {
+                            console.log(chalk.red('Cannot find ' + infile));
+                            status();
+                        }
+                    }
+                }
+
+            });
+            
+            // read in the app config
+            var tiapp = tiappxml.load(infile);
+
+            var alloyCfg;
+            var isAlloy = false;
+            if (fs.existsSync("./app/config.json")) {
+                isAlloy = true;
+                alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
+            }
+
             // find the config name specified
             cfg.configs.forEach(function(config) {
 
-                if (config.name === name) {
+                if (config.name === name || config.name === "global") {
                     console.log('\nFound a config for ' + chalk.cyan(config.name) + '\n');
-
-                    //Update theme on Alloy config
-                    if( isAlloy && processAlloy ){
-                        alloyCfg.global.theme = name;
-                        console.log('Changing ' + chalk.cyan('Alloy Theme') + ' to ' + chalk.yellow(alloyCfg.global.theme));
-                        fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
-                    }
 
                     for (var setting in config.settings) {
 
@@ -76,8 +104,8 @@ function tich() {
 
                             console.log('Changing ' + chalk.cyan(setting) + ' to ' + chalk.yellow(replaceWith));
                         }
-
                     }
+
 
                     if (config.settings.properties) {
                         for (var property in config.settings.properties) {
@@ -147,45 +175,55 @@ function tich() {
                         }
                     }
 
-                    //Update DefaultIcon
-                    var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+                    if( config.name != "global"){
 
-                    if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png')) {
-                        defaultIcon = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png';
+                        //Update theme on Alloy config only if it's not global configuration
+                        if( isAlloy && processAlloy ){
+                            alloyCfg.global.theme = name;
+                            console.log('Changing ' + chalk.cyan('Alloy Theme') + ' to ' + chalk.yellow(alloyCfg.global.theme));
+                            fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
+                        }
+
+                        //Update DefaultIcon
+                        var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+
+                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png')) {
+                            defaultIcon = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png';
+                        }
+
+                        copy({
+                          files: {
+                            'DefaultIcon.png': defaultIcon
+                          },
+                          dest: './',
+                          overwrite: true
+                        }, function (err) {
+                            console.log('Updating DefaultIcon.png');
+                        });
+
+
+                        //Update LaunchLogo
+                        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
+
+                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png')) {
+                            defaultLaunchLogo = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png';
+                        }
+
+                        copy({
+                          files: {
+                            'LaunchLogo.png': defaultLaunchLogo
+                          },
+                          dest: './',
+                          overwrite: true
+                        }, function (err) {
+                            console.log('Updating LaunchLogo.png');
+                        });
+                        
+                        console.log(chalk.green('\n' + outfilename + ' updated\n'));
+
+                        tiapp.write(outfilename);
+
                     }
-
-                    copy({
-                      files: {
-                        'DefaultIcon.png': defaultIcon
-                      },
-                      dest: './',
-                      overwrite: true
-                    }, function (err) {
-                        console.log('Updating DefaultIcon.png');
-                    });
-
-
-                    //Update LaunchLogo
-                    var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
-
-                    if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png')) {
-                        defaultLaunchLogo = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png';
-                    }
-
-                    copy({
-                      files: {
-                        'LaunchLogo.png': defaultLaunchLogo
-                      },
-                      dest: './',
-                      overwrite: true
-                    }, function (err) {
-                        console.log('Updating LaunchLogo.png');
-                    });
-                    
-
-                    console.log(chalk.green('\n' + outfilename + ' updated\n'));
-
-                    tiapp.write(outfilename);
 
                 }
             });
@@ -225,16 +263,6 @@ function tich() {
 
     // read in our config
     var cfg = JSON.parse(fs.readFileSync(cfgfile, "utf-8"));
-
-    // read in the app config
-    var tiapp = tiappxml.load(infile);
-
-    var alloyCfg;
-    var isAlloy = false;
-    if (fs.existsSync("./app/config.json")) {
-        isAlloy = true;
-        alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
-    }
 
     // check for a new version
     updateNotifier({
