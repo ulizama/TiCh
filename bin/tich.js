@@ -86,7 +86,7 @@ function tich() {
 
                         if (setting != "properties" && setting != "raw") {
 
-							var now = new Date();
+                            var now = new Date();
                             var replaceWith = config.settings[setting]
                                 .replace('$DATE$', now.toLocaleDateString())
                                 .replace('$TIME$', now.toLocaleTimeString())
@@ -181,7 +181,27 @@ function tich() {
                         if( isAlloy && processAlloy ){
                             alloyCfg.global.theme = name;
                             console.log('Changing ' + chalk.cyan('Alloy Theme') + ' to ' + chalk.yellow(alloyCfg.global.theme));
+                            
+                            if( fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/config.json') ){
+                                var configTheme = JSON.parse(fs.readFileSync('./app/themes/' + alloyCfg.global.theme + '/config.json', 'utf-8'));
+                                console.log('Updating Alloy config.json with theme configuration file');
+
+                                Object.keys(configTheme).forEach(function( rootconfig ){
+                                    if( alloyCfg[rootconfig] ){
+                                        Object.keys(configTheme[rootconfig]).forEach(function( innerconfig ){
+                                            alloyCfg[rootconfig][innerconfig] = configTheme[rootconfig][innerconfig];
+                                            console.log('Changing ' + chalk.cyan('config.' + rootconfig + '.' + innerconfig) + ' to ' + chalk.yellow(configTheme[rootconfig][innerconfig]));
+                                        });
+                                    }
+                                });
+
+                            }
+
+
                             fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
+
+
+
                         }
 
                         //Update DefaultIcon
