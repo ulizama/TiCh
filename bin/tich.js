@@ -7,7 +7,8 @@ var program = require('commander'),
     tiappxml = require('tiapp.xml'),
     pkg = require('../package.json'),
     xpath = require('xpath'),
-    copy = require('copy-files')
+    copy = require('copy-files'),
+    ncp = require('ncp').ncp;
 
 tich();
 
@@ -132,11 +133,13 @@ function tich() {
                         }
                     }
 
+
                     if (config.settings.raw) {
                         var doc = tiapp.doc;
                         var select = xpath.useNamespaces({
                             "ti": "http://ti.appcelerator.org",
-                            "android": "http://schemas.android.com/apk/res/android"
+                            "android": "http://schemas.android.com/apk/res/android",
+                            "ios": ""
                         });
                         for (var path in config.settings.raw) {
 
@@ -199,11 +202,48 @@ function tich() {
 
 
                             fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
-
-
-
                         }
 
+                        var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+
+                        if( fs.existsSync(assetsDirectory) ){
+                            ncp(assetsDirectory, './app/assets/', function (err) {
+                                if (err) {
+                                    return console.error(err);
+                                }
+
+                                console.log('Assets from ' + assetsDirectory + ' copied');
+                            });
+                        }
+
+                        //Remove previous LaunchScreen
+
+                        if( fs.existsSync('./app/platform/iphone') ){
+
+                            fs.readdir('./app/platform/iphone', function(err, files){
+
+                                files.forEach(function(file){
+                                    fs.unlinkSync('./app/platform/iphone/' + file)
+                                    console.log( chalk.cyan('Removing ./app/platform/iphone/' + file) );
+                                });
+
+                                fs.rmdirSync('./app/platform/iphone');
+                                console.log( chalk.cyan('Platform iphone removed') );
+                            })
+                        }
+
+                        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
+
+                        if( fs.existsSync(platformDirectory) ){
+                            ncp(platformDirectory, './app/platform/', function (err) {
+                                if (err) {
+                                    return console.error(err);
+                                }
+
+                                console.log('Platform from ' + platformDirectory + ' copied');
+                            });
+                        }
+                        
                         //Update DefaultIcon
                         var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
 
