@@ -8,7 +8,8 @@ var program = require('commander'),
     pkg = require('../package.json'),
     xpath = require('xpath'),
     copy = require('copy-files'),
-    ncp = require('ncp').ncp;
+    ncp = require('ncp').ncp,
+    exec = require('child_process').exec;
 
 tich();
 
@@ -204,17 +205,37 @@ function tich() {
                             fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
                         }
 
-                        var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+                        exec('rm -r ./app/assets/*', function() {
+                            console.log(chalk.cyan('Assets cleaned'));
+                            
+                            //default assets for all projects
+                            var globalAssetsDirectory = './app/themes/global/assets';
 
-                        if( fs.existsSync(assetsDirectory) ){
-                            ncp(assetsDirectory, './app/assets/', function (err) {
-                                if (err) {
-                                    return console.error(err);
-                                }
+                            if( fs.existsSync(globalAssetsDirectory) ){
+                                ncp(globalAssetsDirectory, './app/assets/', function (err) {
+                                    if (err) {
+                                        return console.error(err);
+                                    }
 
-                                console.log('Assets from ' + assetsDirectory + ' copied');
-                            });
-                        }
+                                    console.log(chalk.cyan('Global assets copied'));
+
+                                    var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+
+                                    if( fs.existsSync(assetsDirectory) ){
+                                        ncp(assetsDirectory, './app/assets/', function (err) {
+                                            if (err) {
+                                                return console.error(err);
+                                            }
+
+                                            console.log(chalk.cyan(alloyCfg.global.theme + ' assets copied'));
+                                        });
+                                    }
+
+                                });
+                            }
+                        });
+
+                        
 
                         //Remove previous LaunchScreen
 
