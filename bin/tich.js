@@ -11,6 +11,9 @@ var program = require('commander'),
     ncp = require('ncp').ncp,
     exec = require('child_process').exec;
 
+    var alloyCfg;
+    var isAlloy = false;
+
 tich();
 
 // main function
@@ -41,6 +44,77 @@ function tich() {
         console.log('\n');
     }
 
+    function copyDefaultIcons(){
+        //Update DefaultIcon
+        var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+        console.log('update default icon')
+
+        copy({
+          files: {
+            'DefaultIcon.png': defaultIcon
+          },
+          dest: './',
+          overwrite: true
+        }, function (err) {
+            console.log('Updating DefaultIcon.png');
+        });
+
+
+        //Update LaunchLogo
+        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
+        console.log('update default launch logo')
+
+        copy({
+          files: {
+            'LaunchLogo.png': defaultLaunchLogo
+          },
+          dest: './',
+          overwrite: true
+        }, function (err) {
+            console.log('Updating LaunchLogo.png');
+        });
+    }
+
+    function copyThemePlatformAssets(){
+        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
+        console.log('Copy Platform assets from ' + platformDirectory)
+
+        if( fs.existsSync(platformDirectory) ){
+            ncp(platformDirectory, './app/platform/', function (err) {
+                if (err) {
+                    console.error(err);
+                } else {
+                    console.log('Platform from ' + platformDirectory + ' copied');
+                }
+            });
+        } else {
+            console.log(platformDirectory + ' does not exist');
+        }
+
+        copyDefaultIcons();
+    }
+
+    function removePlatformStoryBoard(){
+        console.log('Remove previous LaunchScreen')
+
+        if( fs.existsSync('./app/platform/iphone') ){
+
+            fs.readdir('./app/platform/iphone', function(err, files){
+
+                files.forEach(function(file){
+                    fs.unlinkSync('./app/platform/iphone/' + file)
+                    console.log( chalk.cyan('Removing ./app/platform/iphone/' + file) );
+                });
+
+                fs.rmdirSync('./app/platform/iphone');
+                console.log( chalk.cyan('Platform iphone removed') );
+                copyThemePlatformAssets();
+            });
+        } else {
+            copyThemePlatformAssets();
+        }
+    }
+
     // select a new config by name
     function select(name, outfilename) {
         var regex = /\$tiapp\.(.*)\$/;
@@ -69,8 +143,8 @@ function tich() {
             // read in the app config
             var tiapp = tiappxml.load(infile);
 
-            var alloyCfg;
-            var isAlloy = false;
+            alloyCfg = undefined;
+            isAlloy = false;
             if (fs.existsSync("./app/config.json")) {
                 isAlloy = true;
                 alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
@@ -214,94 +288,34 @@ function tich() {
                             if( fs.existsSync(globalAssetsDirectory) ){
                                 ncp(globalAssetsDirectory, './app/assets/', function (err) {
                                     if (err) {
-                                        return console.error(err);
+                                        console.error(err);
                                     }
 
                                     console.log(chalk.cyan('Global assets copied'));
-
                                     var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+                                    console.log('Start copy from ' + assetsDirectory)
 
                                     if( fs.existsSync(assetsDirectory) ){
                                         ncp(assetsDirectory, './app/assets/', function (err) {
                                             if (err) {
-                                                return console.error(err);
+                                                console.error(err);
                                             }
 
                                             console.log(chalk.cyan(alloyCfg.global.theme + ' assets copied'));
+                                            console.log('Start Platform Assets management')
+                                            removePlatformStoryBoard();
                                         });
+                                    } else {
+                                        removePlatformStoryBoard();
                                     }
 
                                 });
+                            } else {
+                                removePlatformStoryBoard();
                             }
                         });
 
-                        
-
-                        //Remove previous LaunchScreen
-
-                        if( fs.existsSync('./app/platform/iphone') ){
-
-                            fs.readdir('./app/platform/iphone', function(err, files){
-
-                                files.forEach(function(file){
-                                    fs.unlinkSync('./app/platform/iphone/' + file)
-                                    console.log( chalk.cyan('Removing ./app/platform/iphone/' + file) );
-                                });
-
-                                fs.rmdirSync('./app/platform/iphone');
-                                console.log( chalk.cyan('Platform iphone removed') );
-                            })
-                        }
-
-                        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
-
-                        if( fs.existsSync(platformDirectory) ){
-                            ncp(platformDirectory, './app/platform/', function (err) {
-                                if (err) {
-                                    return console.error(err);
-                                }
-
-                                console.log('Platform from ' + platformDirectory + ' copied');
-                            });
-                        }
-                        
-                        //Update DefaultIcon
-                        var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
-
-                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png')) {
-                            defaultIcon = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png';
-                        }
-
-                        copy({
-                          files: {
-                            'DefaultIcon.png': defaultIcon
-                          },
-                          dest: './',
-                          overwrite: true
-                        }, function (err) {
-                            console.log('Updating DefaultIcon.png');
-                        });
-
-
-                        //Update LaunchLogo
-                        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
-
-                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png')) {
-                            defaultLaunchLogo = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png';
-                        }
-
-                        copy({
-                          files: {
-                            'LaunchLogo.png': defaultLaunchLogo
-                          },
-                          dest: './',
-                          overwrite: true
-                        }, function (err) {
-                            console.log('Updating LaunchLogo.png');
-                        });
-                        
                         console.log(chalk.green('\n' + outfilename + ' updated\n'));
-
                         tiapp.write(outfilename);
 
                     }
