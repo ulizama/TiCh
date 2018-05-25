@@ -44,6 +44,37 @@ function tich() {
         console.log('\n');
     }
 
+    function copyTesters(){
+        if( !fs.existsSync('./TiFLPilot/') ){
+            fs.mkdirSync('./TiFLPilot/');
+        } else {
+            if(fs.existsSync('./TiFLPilot/tester_import.csv')){
+                fs.unlinkSync('./TiFLPilot/tester_import.csv');
+            }
+        }
+
+        var filePath = './pilot/' + alloyCfg.global.theme + '/tester_import.csv';
+
+        if(fs.existsSync(filePath)){
+            copy({
+                files: {
+                    'tester_import.csv': filePath
+                },
+                dest: './TiFLPilot/',
+                overwrite: true
+              }, function (err) {
+                    if(err){
+                        console.log('Error copying tester_import for ' + alloyCfg.global.theme);
+                    }
+
+                    console.log('tester_import copied');
+              });
+        } else {
+            console.log(filePath + ' does not exist');
+        }
+
+    }
+
     function copyDefaultIcons(){
         //Update DefaultIcon
         var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
@@ -73,6 +104,8 @@ function tich() {
         }, function (err) {
             console.log('Updating LaunchLogo.png');
         });
+
+        copyTesters();
     }
 
     function copyThemePlatformAssets(){
