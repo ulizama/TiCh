@@ -105,6 +105,12 @@ function tich() {
             console.log('Updating LaunchLogo.png');
         });
 
+        if( fs.existsSync('./notification_icon.sh') ){
+            exec('./notification_icon.sh '+ alloyCfg.global.theme, function() {
+                console.log('Update notification icon')
+            });
+        }
+
         copyTesters();
     }
 
