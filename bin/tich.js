@@ -3,7 +3,7 @@
 var program = require('commander'),
     chalk = require('chalk'),
     updateNotifier = require('update-notifier'),
-    fs = require("fs"),
+    fs = require('fs'),
     tiappxml = require('tiapp.xml'),
     pkg = require('../package.json'),
     xpath = require('xpath'),
@@ -54,146 +54,150 @@ function tich() {
         return availableApps().indexOf(name) !== -1;
     }
 
-    function copyTesters(){
-        if( !fs.existsSync('./TiFLPilot/') ){
-            fs.mkdirSync('./TiFLPilot/');
-        } else {
-            if(fs.existsSync('./TiFLPilot/tester_import.csv')){
-                fs.unlinkSync('./TiFLPilot/tester_import.csv');
-            }
-        }
+    function copyTesters() {
+        console.log('## Copy Pilot testers...');
+        var fileName = 'tester_import.csv';
+        var filePath = './pilot/' + alloyCfg.global.theme + '/' + fileName;
+        var pilotPath = './TiFLPilot/';
 
-        var filePath = './pilot/' + alloyCfg.global.theme + '/tester_import.csv';
+        exec('rm -rf ' + pilotPath, function () {
+            if (fs.existsSync(filePath)) {
+                fs.mkdirSync(pilotPath);
 
-        if(fs.existsSync(filePath)){
-            copy({
-                files: {
-                    'tester_import.csv': filePath
-                },
-                dest: './TiFLPilot/',
-                overwrite: true
-              }, function (err) {
-                    if(err){
-                        console.log('Error copying tester_import for ' + alloyCfg.global.theme);
+                copy({
+                    files: {
+                        'tester_import.csv': filePath
+                    },
+                    dest: pilotPath,
+                    overwrite: true
+                }, function (err) {
+                    if (err) {
+                        console.log(chalk.red('Error copying ' + fileName + ' for ' + alloyCfg.global.theme));
+                    } else {
+                        console.log(chalk.cyan('Copy Pilot testers done'));
                     }
 
-                    console.log('tester_import copied');
-              });
-        } else {
-            console.log(filePath + ' does not exist');
-        }
-
+                    status();
+                });
+            } else {
+                console.log(chalk.yellow('Pilot testers not found'));
+                status();
+            }
+        });
     }
 
-    function copyDefaultIcons(){
-        //Update DefaultIcon
+    function copyDefaultIcon() {
+        console.log('## Update default icon...');
         var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
-        console.log('update default icon')
 
-        if(fs.existsSync(defaultIcon)){
+        if (fs.existsSync(defaultIcon)) {
             copy({
                 files: {
-                  'DefaultIcon.png': defaultIcon
+                    'DefaultIcon.png': defaultIcon
                 },
                 dest: './',
                 overwrite: true
-              }, function (err) {
-                  console.log('Updating DefaultIcon.png');
-              });
-        }
-
-        
-
-
-        //Update LaunchLogo
-        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
-        console.log('update default launch logo')
-
-        if(fs.existsSync(defaultLaunchLogo)){
-            copy({
-                files: {
-                  'LaunchLogo.png': defaultLaunchLogo
-                },
-                dest: './',
-                overwrite: true
-              }, function (err) {
-                  console.log('Updating LaunchLogo.png');
+            }, function (err) {
+                console.log(chalk.cyan('Updating DefaultIcon.png done'));
+                copyDefaultLaunchLogo();
             });
+        } else {
+            //continue
+            copyDefaultLaunchLogo();
         }
-
-        if( fs.existsSync('./notification_icon.sh') ){
-            exec('./notification_icon.sh '+ alloyCfg.global.theme, function() {
-                console.log('Update notification icon')
-            });
-        }
-
-        copyTesters();
     }
 
-    function copyThemePlatformAssets(){
-        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
-        console.log('Copy Platform assets from ' + platformDirectory)
+    function copyDefaultLaunchLogo() {
+        console.log('#### Update default launch logo...');
+        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
 
-        if( fs.existsSync(platformDirectory) ){
+        if (fs.existsSync(defaultLaunchLogo)) {
+            copy({
+                files: {
+                    'LaunchLogo.png': defaultLaunchLogo
+                },
+                dest: './',
+                overwrite: true
+            }, function (err) {
+                console.log(chalk.cyan('Updating LaunchLogo.png done'));
+                copyNotificationIcons();
+            });
+        } else {
+            //continue
+            console.log(chalk.red(defaultLaunchLogo + ' not found'));
+            copyNotificationIcons();
+        }
+    }
+
+    function copyNotificationIcons(){
+        console.log('#### Update notification icons for FCM...');
+
+        var filePath = './notification_icon.sh';
+    
+        if (fs.existsSync(filePath)) {
+            exec('. notification_icon.sh ' + alloyCfg.global.theme, function() {
+                console.log(chalk.cyan('Updating notification icons done'));
+                copyTesters();
+            });
+        } else {
+            //continue
+            copyTesters();
+        }
+    }
+
+    function copyThemePlatformAssets() {
+        console.log('### Copy Platform assets');
+        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
+        
+        if (fs.existsSync(platformDirectory)) {
             ncp(platformDirectory, './app/platform/', function (err) {
                 if (err) {
-                    console.error(err);
+                    console.error( chalk.red('Error found: ' + err) );
                 } else {
                     console.log('Platform from ' + platformDirectory + ' copied');
                 }
+
+                //Continue copying icons
+                copyDefaultIcon();
             });
         } else {
-            console.log(platformDirectory + ' does not exist');
+            //Continue copying icons
+            copyDefaultIcon();
         }
-
-        copyDefaultIcons();
     }
 
     function removePlatformStoryBoard(){
-        console.log('Remove previous LaunchScreen')
+        console.log('### Remove previous LaunchScreen');
 
-        if( fs.existsSync('./app/platform/iphone') ){
+        var iosPlatformPath = './app/platform/iphone';
 
-            fs.readdir('./app/platform/iphone', function(err, files){
-
-                files.forEach(function(file){
-                    fs.unlinkSync('./app/platform/iphone/' + file)
-                    console.log( chalk.cyan('Removing ./app/platform/iphone/' + file) );
-                });
-
-                fs.rmdirSync('./app/platform/iphone');
-                console.log( chalk.cyan('Platform iphone removed') );
-                copyThemePlatformAssets();
-            });
-        } else {
+        exec('rm -rf ' + iosPlatformPath, function () {
             copyThemePlatformAssets();
-        }
+        });
     }
 
     // select a new config by name
     function select(name, outfilename) {
         var regex = /\$tiapp\.(.*)\$/;
 
-        if (!appExists(name)) {
-            console.log(chalk.red('App not available'));
-            process.exit(1);
-        } else if (!name) {
+        if (!name) {
             console.log(chalk.red('No config specified, nothing to do.'));
+            process.exit(1);
+        } else if (!appExists(name)) {
+            console.log(chalk.red('App not available'));
             process.exit(1);
         } else {
             cfg.configs.forEach(function(config) {
-
                 if (config.name === name ) {
                     if (config.hasOwnProperty('tiapp')){
                         infile = './TiCh/templates/' + config.tiapp;
 
                         if (!fs.existsSync(infile)) {
                             console.log(chalk.red('Cannot find ' + infile));
-                            status();
+                            process.exit(1);
                         }
                     }
                 }
-
             });
             
             // read in the app config
@@ -204,7 +208,7 @@ function tich() {
 
             if (fs.existsSync("./app/config.json")) {
                 isAlloy = true;
-                alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
+                alloyCfg = JSON.parse(fs.readFileSync('./app/config.json', 'utf-8'));
             }
 
             // find the config name specified
@@ -291,12 +295,11 @@ function tich() {
 
 
                             var matches = regex.exec(replaceWith);
+                            
                             if (matches && matches[1]) {
                                 var propName = matches[1];
                                 replaceWith = replaceWith.replace(regex, tiapp[propName]);
                             }
-
-                            
 
                             if (typeof(node.value) === 'undefined'){
                                 node.firstChild.data = replaceWith;
@@ -389,14 +392,9 @@ function tich() {
 
                         console.log(chalk.green('\n' + outfilename + ' updated\n'));
                         tiapp.write(outfilename);
-
                     }
-
                 }
             });
-
-            //console.log(chalk.red('\nCouldn\'t find a config called: ' + name + '\n'));
-
         }
     }
 
@@ -431,10 +429,9 @@ function tich() {
                 },
                 dest: './app/',
                 overwrite: true
-              }, function (err) {
-                  console.log('Replacing config.json');
-              });
-
+            }, function (err) {
+                console.log('Replacing config.json');
+            });
         }
     }
 
