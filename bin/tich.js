@@ -3,11 +3,16 @@
 var program = require('commander'),
     chalk = require('chalk'),
     updateNotifier = require('update-notifier'),
-    fs = require("fs"),
+    fs = require('fs'),
     tiappxml = require('tiapp.xml'),
     pkg = require('../package.json'),
     xpath = require('xpath'),
-    copy = require('copy-files')
+    copy = require('copy-files'),
+    ncp = require('ncp').ncp,
+    exec = require('child_process').exec;
+
+    var alloyCfg;
+    var isAlloy = false;
 
 tich();
 
@@ -18,9 +23,9 @@ function tich() {
     function status() {
 
         var tiapp = tiappxml.load(outfile);
-
         var alloyCfg;
         var isAlloy = false;
+
         if (fs.existsSync("./app/config.json")) {
             isAlloy = true;
             alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
@@ -39,39 +44,171 @@ function tich() {
         console.log('\n');
     }
 
+    function availableApps() {
+        return cfg.configs.map(function (o) {
+            return o.name
+        });
+    }
+
+    function appExists(name) {
+        return availableApps().indexOf(name) !== -1;
+    }
+
+    function copyTesters() {
+        console.log('## Copy Pilot testers...');
+        var fileName = 'tester_import.csv';
+        var filePath = './pilot/' + alloyCfg.global.theme + '/' + fileName;
+        var pilotPath = './TiFLPilot/';
+
+        exec('rm -rf ' + pilotPath, function () {
+            if (fs.existsSync(filePath)) {
+                fs.mkdirSync(pilotPath);
+
+                copy({
+                    files: {
+                        'tester_import.csv': filePath
+                    },
+                    dest: pilotPath,
+                    overwrite: true
+                }, function (err) {
+                    if (err) {
+                        console.log(chalk.red('Error copying ' + fileName + ' for ' + alloyCfg.global.theme));
+                    } else {
+                        console.log(chalk.cyan('Copy Pilot testers done'));
+                    }
+
+                    status();
+                });
+            } else {
+                console.log(chalk.yellow('Pilot testers not found'));
+                status();
+            }
+        });
+    }
+
+    function copyDefaultIcon() {
+        console.log('## Update default icon...');
+        var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+
+        if (fs.existsSync(defaultIcon)) {
+            copy({
+                files: {
+                    'DefaultIcon.png': defaultIcon
+                },
+                dest: './',
+                overwrite: true
+            }, function (err) {
+                console.log(chalk.cyan('Updating DefaultIcon.png done'));
+                copyDefaultLaunchLogo();
+            });
+        } else {
+            //continue
+            copyDefaultLaunchLogo();
+        }
+    }
+
+    function copyDefaultLaunchLogo() {
+        console.log('#### Update default launch logo...');
+        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
+
+        if (fs.existsSync(defaultLaunchLogo)) {
+            copy({
+                files: {
+                    'LaunchLogo.png': defaultLaunchLogo
+                },
+                dest: './',
+                overwrite: true
+            }, function (err) {
+                console.log(chalk.cyan('Updating LaunchLogo.png done'));
+                copyNotificationIcons();
+            });
+        } else {
+            //continue
+            console.log(chalk.red(defaultLaunchLogo + ' not found'));
+            copyNotificationIcons();
+        }
+    }
+
+    function copyNotificationIcons(){
+        console.log('#### Update notification icons for FCM...');
+
+        var filePath = './notification_icon.sh';
+    
+        if (fs.existsSync(filePath)) {
+            exec('. notification_icon.sh ' + alloyCfg.global.theme, function() {
+                console.log(chalk.cyan('Updating notification icons done'));
+                copyTesters();
+            });
+        } else {
+            //continue
+            copyTesters();
+        }
+    }
+
+    function copyThemePlatformAssets() {
+        console.log('### Copy Platform assets');
+        var platformDirectory = './app/themes/' + alloyCfg.global.theme + '/platform/'
+        
+        if (fs.existsSync(platformDirectory)) {
+            ncp(platformDirectory, './app/platform/', function (err) {
+                if (err) {
+                    console.error( chalk.red('Error found: ' + err) );
+                } else {
+                    console.log('Platform from ' + platformDirectory + ' copied');
+                }
+
+                //Continue copying icons
+                copyDefaultIcon();
+            });
+        } else {
+            //Continue copying icons
+            copyDefaultIcon();
+        }
+    }
+
+    function removePlatformStoryBoard(){
+        console.log('### Remove previous LaunchScreen');
+
+        var iosPlatformPath = './app/platform/iphone';
+
+        exec('rm -rf ' + iosPlatformPath, function () {
+            copyThemePlatformAssets();
+        });
+    }
+
     // select a new config by name
     function select(name, outfilename) {
         var regex = /\$tiapp\.(.*)\$/;
 
         if (!name) {
             console.log(chalk.red('No config specified, nothing to do.'));
-            status();
-
+            process.exit(1);
+        } else if (!appExists(name)) {
+            console.log(chalk.red('App not available'));
+            process.exit(1);
         } else {
-
             cfg.configs.forEach(function(config) {
-
                 if (config.name === name ) {
                     if (config.hasOwnProperty('tiapp')){
                         infile = './TiCh/templates/' + config.tiapp;
 
                         if (!fs.existsSync(infile)) {
                             console.log(chalk.red('Cannot find ' + infile));
-                            status();
+                            process.exit(1);
                         }
                     }
                 }
-
             });
             
             // read in the app config
             var tiapp = tiappxml.load(infile);
 
-            var alloyCfg;
-            var isAlloy = false;
+            alloyCfg = undefined;
+            isAlloy = false;
+
             if (fs.existsSync("./app/config.json")) {
                 isAlloy = true;
-                alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
+                alloyCfg = JSON.parse(fs.readFileSync('./app/config.json', 'utf-8'));
             }
 
             // find the config name specified
@@ -86,7 +223,7 @@ function tich() {
 
                         if (setting != "properties" && setting != "raw") {
 
-							var now = new Date();
+                            var now = new Date();
                             var replaceWith = config.settings[setting]
                                 .replace('$DATE$', now.toLocaleDateString())
                                 .replace('$TIME$', now.toLocaleTimeString())
@@ -132,11 +269,13 @@ function tich() {
                         }
                     }
 
+
                     if (config.settings.raw) {
                         var doc = tiapp.doc;
                         var select = xpath.useNamespaces({
                             "ti": "http://ti.appcelerator.org",
-                            "android": "http://schemas.android.com/apk/res/android"
+                            "android": "http://schemas.android.com/apk/res/android",
+                            "ios": ""
                         });
                         for (var path in config.settings.raw) {
 
@@ -156,12 +295,11 @@ function tich() {
 
 
                             var matches = regex.exec(replaceWith);
+                            
                             if (matches && matches[1]) {
                                 var propName = matches[1];
                                 replaceWith = replaceWith.replace(regex, tiapp[propName]);
                             }
-
-                            
 
                             if (typeof(node.value) === 'undefined'){
                                 node.firstChild.data = replaceWith;
@@ -181,55 +319,82 @@ function tich() {
                         if( isAlloy && processAlloy ){
                             alloyCfg.global.theme = name;
                             console.log('Changing ' + chalk.cyan('Alloy Theme') + ' to ' + chalk.yellow(alloyCfg.global.theme));
+                            
+                            if( fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/config.json') ){
+                                var configTheme = JSON.parse(fs.readFileSync('./app/themes/' + alloyCfg.global.theme + '/config.json', 'utf-8'));
+                                console.log('Updating Alloy config.json with theme configuration file');
+
+                                Object.keys(configTheme).forEach(function( rootconfig ){
+                                    if( alloyCfg[rootconfig] ){
+                                        Object.keys(configTheme[rootconfig]).forEach(function( innerconfig ){
+                                            alloyCfg[rootconfig][innerconfig] = configTheme[rootconfig][innerconfig];
+                                            console.log('Changing ' + chalk.cyan('config.' + rootconfig + '.' + innerconfig) + ' to ' + chalk.yellow(configTheme[rootconfig][innerconfig]));
+                                        });
+                                    }
+                                });
+
+                            }
+
+
                             fs.writeFileSync("./app/config.json", JSON.stringify(alloyCfg, null, 4));
                         }
 
-                        //Update DefaultIcon
-                        var defaultIcon = './app/assets/iphone/iTunesArtwork@2x.png';
+                        exec('rm -r ./app/assets/*', function() {
+                            console.log(chalk.cyan('Assets cleaned'));
+                            
+                            //default assets for all projects
+                            var globalAssetsDirectory = './app/themes/global/assets';
 
-                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png')) {
-                            defaultIcon = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/iTunesArtwork@2x.png';
-                        }
+                            if( fs.existsSync(globalAssetsDirectory) ){
+                                ncp(globalAssetsDirectory, './app/assets/', function (err) {
+                                    if (err) {
+                                        console.error(err);
+                                    }
 
-                        copy({
-                          files: {
-                            'DefaultIcon.png': defaultIcon
-                          },
-                          dest: './',
-                          overwrite: true
-                        }, function (err) {
-                            console.log('Updating DefaultIcon.png');
+                                    console.log(chalk.cyan('Global assets copied'));
+                                    var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+                                    console.log('Start copy from ' + assetsDirectory)
+
+                                    if( fs.existsSync(assetsDirectory) ){
+                                        ncp(assetsDirectory, './app/assets/', function (err) {
+                                            if (err) {
+                                                console.error(err);
+                                            }
+
+                                            console.log(chalk.cyan(alloyCfg.global.theme + ' assets copied'));
+                                            console.log('Start Platform Assets management')
+                                            removePlatformStoryBoard();
+                                        });
+                                    } else {
+                                        removePlatformStoryBoard();
+                                    }
+
+                                });
+                            } else {
+                                var assetsDirectory = './app/themes/' + alloyCfg.global.theme + '/assets/'
+                                console.log('Start copy from ' + assetsDirectory)
+
+                                if( fs.existsSync(assetsDirectory) ){
+                                    ncp(assetsDirectory, './app/assets/', function (err) {
+                                        if (err) {
+                                            console.error(err);
+                                        }
+
+                                        console.log(chalk.cyan(alloyCfg.global.theme + ' assets copied'));
+                                        console.log('Start Platform Assets management')
+                                        removePlatformStoryBoard();
+                                    });
+                                } else {
+                                    removePlatformStoryBoard();
+                                }
+                            }
                         });
 
-
-                        //Update LaunchLogo
-                        var defaultLaunchLogo = './app/assets/iphone/LaunchLogo.png';
-
-                        if (fs.existsSync('./app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png')) {
-                            defaultLaunchLogo = './app/themes/' + alloyCfg.global.theme + '/assets/iphone/LaunchLogo.png';
-                        }
-
-                        copy({
-                          files: {
-                            'LaunchLogo.png': defaultLaunchLogo
-                          },
-                          dest: './',
-                          overwrite: true
-                        }, function (err) {
-                            console.log('Updating LaunchLogo.png');
-                        });
-                        
                         console.log(chalk.green('\n' + outfilename + ' updated\n'));
-
                         tiapp.write(outfilename);
-
                     }
-
                 }
             });
-
-            //console.log(chalk.red('\nCouldn\'t find a config called: ' + name + '\n'));
-
         }
     }
 
@@ -278,7 +443,6 @@ function tich() {
 
     // select command, select based on the arg passed
     } else if (program.select) {
-
         select(program.select, outfile);
 
     // capture command - this will store the current TiApp.xml settings
