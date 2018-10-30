@@ -409,7 +409,6 @@ function tich() {
         .option('-o, --out <path>', 'Specifies the file to write (default: tiapp.xml)')
         .option('-s, --select <name>', 'Updates TiApp.xml to config specified by <name>')
         .option('--noalloy', 'Do no update theme on Alloy config')
-        .option('--ticfg <path>', 'Restore config.json from another file')
         //.option('-c, --capture <name>', "Stores the current values of TiApp.xml id, name, version as <name> ")
 
     program.parse(process.argv);
@@ -418,22 +417,6 @@ function tich() {
     var infile = program.in ? program.in : './tiapp.xml';
     var outfile = program.out ? program.out : './tiapp.xml';
     var processAlloy = program.noalloy ? false : true;
-    var ticfg = program.ticfg ? true : false;
-
-
-    if( ticfg ){
-        if( fs.existsSync(program.ticfg) ){
-            copy({
-                files: {
-                    'config.json': program.ticfg
-                },
-                dest: './app/',
-                overwrite: true
-            }, function (err) {
-                console.log('Replacing config.json');
-            });
-        }
-    }
 
     // check that all required input paths are good
     [cfgfile, infile].forEach(function (file) {
