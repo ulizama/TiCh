@@ -23,9 +23,9 @@ function tich() {
     function status() {
 
         var tiapp = tiappxml.load(outfile);
-
         var alloyCfg;
         var isAlloy = false;
+
         if (fs.existsSync("./app/config.json")) {
             isAlloy = true;
             alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
@@ -42,6 +42,16 @@ function tich() {
         }
 
         console.log('\n');
+    }
+
+    function availableApps() {
+        return cfg.configs.map(function (o) {
+            return o.name
+        });
+    }
+
+    function appExists(name) {
+        return availableApps().indexOf(name) !== -1;
     }
 
     function copyTesters(){
@@ -164,12 +174,13 @@ function tich() {
     function select(name, outfilename) {
         var regex = /\$tiapp\.(.*)\$/;
 
-        if (!name) {
+        if (!appExists(name)) {
+            console.log(chalk.red('App not available'));
+            process.exit(1);
+        } else if (!name) {
             console.log(chalk.red('No config specified, nothing to do.'));
-            status();
-
+            process.exit(1);
         } else {
-
             cfg.configs.forEach(function(config) {
 
                 if (config.name === name ) {
@@ -190,6 +201,7 @@ function tich() {
 
             alloyCfg = undefined;
             isAlloy = false;
+
             if (fs.existsSync("./app/config.json")) {
                 isAlloy = true;
                 alloyCfg = JSON.parse(fs.readFileSync("./app/config.json", "utf-8"));
@@ -451,7 +463,6 @@ function tich() {
 
     // select command, select based on the arg passed
     } else if (program.select) {
-
         select(program.select, outfile);
 
     // capture command - this will store the current TiApp.xml settings
