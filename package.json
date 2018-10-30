@@ -1,6 +1,6 @@
 {
   "name": "tich",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "TiCh (TiChange) - allows you to switch App configurations via the CLI.",
   "main": "index.js",
   "bin": {
